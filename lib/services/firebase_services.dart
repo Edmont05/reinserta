@@ -2,6 +2,23 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 FirebaseFirestore db = FirebaseFirestore.instance;
 
+int calcularRangoMinimo(DateTime fechaInicio, DateTime fechaFin) {
+  final diferencia = fechaFin.difference(fechaInicio);
+
+  if (diferencia.inDays < 7) {
+    // Menos de 1 semana
+    return 1;
+  } else if (diferencia.inDays < 30) {
+    // 1 semana hasta menos de 1 mes
+    return 2;
+  } else if (diferencia.inDays < 180) {
+    // 1 mes hasta menos de 6 meses
+    return 3;
+  } else {
+    // 6 meses o más
+    return 4;
+  }
+}
 
 Stream<List> getHistorialRealtime() {
   CollectionReference collectionReferenceHistorial = db.collection('Historial');
@@ -10,13 +27,13 @@ Stream<List> getHistorialRealtime() {
       .snapshots()
       .map(
         (snapshot) =>
-        snapshot.docs.map((doc) {
-          final Map<String, dynamic> data =
-          doc.data() as Map<String, dynamic>;
-          data['id'] = doc.id;
-          return data;
-        }).toList(),
-  );
+            snapshot.docs.map((doc) {
+              final Map<String, dynamic> data =
+                  doc.data() as Map<String, dynamic>;
+              data['id'] = doc.id;
+              return data;
+            }).toList(),
+      );
 }
 
 Stream<List> getSolicitudesRealtime() {
@@ -28,13 +45,13 @@ Stream<List> getSolicitudesRealtime() {
       .snapshots()
       .map(
         (snapshot) =>
-        snapshot.docs.map((doc) {
-          final Map<String, dynamic> data =
-          doc.data() as Map<String, dynamic>;
-          data['id'] = doc.id;
-          return data;
-        }).toList(),
-  );
+            snapshot.docs.map((doc) {
+              final Map<String, dynamic> data =
+                  doc.data() as Map<String, dynamic>;
+              data['id'] = doc.id;
+              return data;
+            }).toList(),
+      );
 }
 
 Stream<List> getEmpleadosRealtime() {
@@ -43,19 +60,71 @@ Stream<List> getEmpleadosRealtime() {
   );
   return collectionReferenceEmpleados
       .where('estado', isEqualTo: true)
-  // .where('rol', isEqualTo: 'empleado')
+      // .where('rol', isEqualTo: 'empleado')
       .orderBy('nombre', descending: false)
       .snapshots()
       .map(
         (snapshot) =>
-        snapshot.docs.map((doc) {
-          final Map<String, dynamic> data =
-          doc.data() as Map<String, dynamic>;
-          data['id'] = doc.id;
-          return data;
-        }).toList(),
-  );
+            snapshot.docs.map((doc) {
+              final Map<String, dynamic> data =
+                  doc.data() as Map<String, dynamic>;
+              data['id'] = doc.id;
+              return data;
+            }).toList(),
+      );
 }
+
+Stream<Map<String, dynamic>?> getEmpleadoFilter({
+  required String empleadoId,
+  required String profesionBuscada,
+  required DateTime fechaInicio,
+  required DateTime fechaFin,
+}) {
+  final rangoMinimo = calcularRangoMinimo(fechaInicio, fechaFin);
+
+  return db
+      .collection('Users')
+      .doc(empleadoId)
+      .snapshots()
+      .map((docSnapshot) {
+    if (docSnapshot.exists) {
+      final data = docSnapshot.data() as Map<String, dynamic>;
+
+      final rol = data['rol'] as String?;
+      final profesion = data['profesion'] as String?;
+      final rango = data['rango'] as int?;
+
+      if (rol == 'empleado' &&
+          profesion == profesionBuscada &&
+          rango != null &&
+          rango >= rangoMinimo) {
+        
+        data['id'] = docSnapshot.id;
+
+        if (rango == 4) {
+          data['beneficio'] =
+              'Tiene beneficio de trabajo formal o posibilidad de solicitarlo.';
+        }
+
+        return data;
+      }
+    }
+    return null;
+  });
+}
+
+Stream<Map<String, dynamic>?> getEmpleadoRealtimeById(String empleadoId) {
+  return db.collection('Users').doc(empleadoId).snapshots().map((docSnapshot) {
+    if (docSnapshot.exists) {
+      final data = docSnapshot.data() as Map<String, dynamic>;
+      data['id'] = docSnapshot.id;
+      return data;
+    } else {
+      return null;
+    }
+  });
+}
+
 
 Stream<List> getEmpleadoresRealtime() {
   CollectionReference collectionReferenceEmpleadores = db.collection(
@@ -67,15 +136,21 @@ Stream<List> getEmpleadoresRealtime() {
       .snapshots()
       .map(
         (snapshot) =>
-        snapshot.docs.map((doc) {
-          final Map<String, dynamic> data =
-          doc.data() as Map<String, dynamic>;
-          data['id'] = doc.id;
-          return data;
-        }).toList(),
-  );
+            snapshot.docs.map((doc) {
+              final Map<String, dynamic> data =
+                  doc.data() as Map<String, dynamic>;
+              data['id'] = doc.id;
+              return data;
+            }).toList(),
+      );
 }
 
+Future<void> updateEstadoEmpleado(String empleadoId, bool estado) async {
+  await FirebaseFirestore.instance
+      .collection('Users')
+      .doc(empleadoId)
+      .update({'estado': estado});
+}
 
 Future<void> addSolicitud({
   required int cantidad,
@@ -149,10 +224,7 @@ Future<void> completeSolicitudAndCreateHistorial({
   if (snapshot.exists) {
     final data = snapshot.data() as Map<String, dynamic>;
 
-    await docRef.update({
-      'estado': 'completada',
-      'calificacion': calificacion,
-    });
+    await docRef.update({'estado': 'completada', 'calificacion': calificacion});
 
     int cantidad = data['cantidad'] ?? 0;
     String descripcion = data['descripcion'] ?? '';
@@ -186,16 +258,11 @@ Future<void> completeSolicitudAndCreateHistorial({
   }
 }
 
-Future<void> acceptSolicitud({
-  required String solicitudId,
-}) async {
+Future<void> acceptSolicitud({required String solicitudId}) async {
   final docRef = db.collection('Solicitudes').doc(solicitudId);
 
-  await docRef.update({
-    'estado': 'en curso',
-  });
+  await docRef.update({'estado': 'en curso'});
 }
-
 
 Stream<List> getHistorialDeEmpleadorRealtime(String empleadorId) {
   CollectionReference collectionReferenceHistorial = db.collection('Historial');
@@ -205,11 +272,11 @@ Stream<List> getHistorialDeEmpleadorRealtime(String empleadorId) {
       .snapshots()
       .map(
         (snapshot) =>
-        snapshot.docs.map((doc) {
-          final Map<String, dynamic> data =
-          doc.data() as Map<String, dynamic>;
-          data['id'] = doc.id;
-          return data;
-        }).toList(),
-  );
+            snapshot.docs.map((doc) {
+              final Map<String, dynamic> data =
+                  doc.data() as Map<String, dynamic>;
+              data['id'] = doc.id;
+              return data;
+            }).toList(),
+      );
 }
