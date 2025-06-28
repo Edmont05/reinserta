@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "332592438539",
+    "project_id": "hackatonia-84d30",
+    "storage_bucket": "hackatonia-84d30.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:332592438539:android:055de97ab0e3d2c13fd60e",
+        "android_client_info": {
+          "package_name": "com.example.reinserta"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDeRwCSUhg-M2J7FTN3CCD6T13Dj_GtiA8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
