@@ -19,7 +19,7 @@ class HomePage extends StatelessWidget {
               children: [
                 // Logo
                 Image.asset(
-                  'img/logo.png', // Usa tu logo azul aquí
+                  'img/logo.png',
                   height: 90,
                   fit: BoxFit.contain,
                 ),
@@ -44,7 +44,6 @@ class HomePage extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 38),
-                // Trabajador Button
                 SizedBox(
                   width: double.infinity,
                   height: 50,

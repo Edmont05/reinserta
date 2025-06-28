@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../theme/app_colors.dart';
-import '../../widgets/app_main_bar.dart';
+import 'request_step1_page.dart';
 
 class EmployerHistoryPage extends StatelessWidget {
   const EmployerHistoryPage({super.key});
@@ -14,13 +14,28 @@ class EmployerHistoryPage extends StatelessWidget {
     ];
 
     return Scaffold(
-      appBar: const AppMainBar(), // <- Use your custom AppBar here
+      appBar: AppBar(
+        backgroundColor: AppColors.cardBg,
+        elevation: 0.5,
+        centerTitle: true,
+        title: Text(
+          'Reinserta',
+          style: TextStyle(
+            color: AppColors.textPrimary,
+            fontWeight: FontWeight.bold,
+            fontSize: 22,
+            letterSpacing: 1.2,
+          ),
+        ),
+        iconTheme: IconThemeData(color: AppColors.primary),
+      ),
+      backgroundColor: AppColors.background,
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(18.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Historial',
               style: TextStyle(
                 fontSize: 28,
@@ -34,15 +49,34 @@ class EmployerHistoryPage extends StatelessWidget {
                 itemCount: history.length,
                 itemBuilder: (context, index) {
                   final item = history[index];
-                  return Card(
-                    elevation: 4,
+                  return Container(
+                    width: double.infinity,
                     margin: const EdgeInsets.only(bottom: 16),
+                    decoration: BoxDecoration(
+                      color: AppColors.cardBg,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.cardBorder),
+                    ),
                     child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 6,
+                      ),
                       title: Text(
                         item['title']!,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 16,
+                          color: AppColors.textPrimary,
+                        ),
                       ),
-                      subtitle: Text(item['description']!),
+                      subtitle: Text(
+                        item['description']!,
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
                     ),
                   );
                 },
@@ -53,7 +87,10 @@ class EmployerHistoryPage extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          // Action when pressing the add button
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const RequestStep1Page()),
+          );
         },
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
