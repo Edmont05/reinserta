@@ -1,33 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:reinserta/firebase_options.dart';
+import 'package:reinserta/services/firebase_service.dart'; // <-- importa tu servicio aquí
+import 'package:firebase_core/firebase_core.dart';
+import 'dart:math';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+
   runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Flutter Demo',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
       ),
       home: const MyHomePage(title: 'Flutter Demo Home Page'),
@@ -38,8 +29,6 @@ class MyApp extends StatelessWidget {
 class MyHomePage extends StatefulWidget {
   const MyHomePage({super.key, required this.title});
 
-
-
   final String title;
 
   @override
@@ -47,55 +36,149 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+  bool _loading = false;
+  String? _message;
 
-  void _incrementCounter() {
+  void _addWorkersBatch() async {
     setState(() {
-     _counter++;
+      _loading = true;
+      _message = null;
     });
+
+    final random = Random();
+
+    final List<String> names = [
+      "Juan Pérez",
+      "Pedro Gómez",
+      "María Flores",
+      "Ana López",
+      "Luis Vargas",
+      "Carla Rojas",
+      "José Salazar",
+      "Paola Díaz",
+      "Diego Castro",
+      "Rosa Gutiérrez",
+      "Fernando Lima",
+      "Patricia Ramírez",
+      "Sergio Molina",
+      "Camila Fuentes",
+      "Eduardo Ochoa",
+      "Cecilia Blanco",
+      "Manuel Ortega",
+      "Laura Suárez",
+      "Esteban Méndez",
+      "Mónica Silva",
+    ];
+
+    final List<String> professions = [
+      "gasfitero",
+      "electricista",
+      "carpintero",
+      "albañil",
+      "pintor",
+      "jardinero",
+      "cerrajero",
+      "plomero",
+      "soldador",
+      "técnico en refrigeración",
+    ];
+
+    List<Map<String, dynamic>> workers = [];
+
+    for (int i = 0; i < 20; i++) {
+      double lat = -17.9 + random.nextDouble() * (0.3);
+      double lng = -63.3 + random.nextDouble() * (0.3);
+      double rating = (random.nextDouble() * 1.5) + 3.5;
+      int range = random.nextInt(5) + 1;
+
+      workers.add({
+        'nombre': names[random.nextInt(names.length)],
+        'profesion': professions[random.nextInt(professions.length)],
+        'calificacion': double.parse(rating.toStringAsFixed(1)),
+        'rango': range,
+        'lat': double.parse(lat.toStringAsFixed(6)),
+        'lng': double.parse(lng.toStringAsFixed(6)),
+        'descripcion': "Experiencia en trabajos residenciales y comerciales.",
+        'estado': true,
+      });
+    }
+
+    try {
+      await addWorkersBatch(workers);
+
+      setState(() {
+        _message = "¡Se agregaron 20 trabajadores aleatorios!";
+      });
+    } catch (e) {
+      setState(() {
+        _message = "Error al agregar trabajadores: $e";
+      });
+    } finally {
+      setState(() {
+        _loading = false;
+      });
+    }
+  }
+
+  void _addSolicitud() async {
+    try {
+      await addSolicitud(
+        cantidad: 3,
+        descripcion: "",
+        entrada: DateTime(2025, 6, 28),
+        estado: "pendiente",
+        latitud: "13456464",
+        longitud: "31854183",
+        monto: 200,
+        profesion: "Carpintero",
+        salida: DateTime(2025, 6, 28),
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("¡Solicitud agregada correctamente!")),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("Error al agregar solicitud: $e")));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-   return Scaffold(
+    return Scaffold(
       appBar: AppBar(
-     backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.title),
       ),
       body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
-        ),
+        child:
+            _loading
+                ? CircularProgressIndicator()
+                : Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: _addWorkersBatch,
+                      icon: Icon(Icons.person_add),
+                      label: Text("Agregar Workers"),
+                    ),
+                    SizedBox(height: 20),
+                    ElevatedButton.icon(
+                      onPressed: _addSolicitud,
+                      icon: Icon(Icons.note_add),
+                      label: Text("Agregar Solicitud"),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => addSolicitudes(context),
+                      child: Text("Agregar Solicitud"),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => addHistorialFicticio(context),
+                      child: Text("Agregar Historial"),
+                    ),
+                  ],
+                ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
     );
   }
 }
