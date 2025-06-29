@@ -10,6 +10,7 @@ class RequestSummaryPage extends StatelessWidget {
   final String monto;
   final String ubicacion;
   final String descripcion;
+  
 
   const RequestSummaryPage({
     super.key,
