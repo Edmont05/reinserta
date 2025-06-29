@@ -79,7 +79,10 @@ class EmployerHistoryPage extends StatelessWidget {
             if (estado == 'pendiente' || estado == 'en progreso')
               Container(
                 margin: const EdgeInsets.only(left: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: _estadoColor(estado),
                   borderRadius: BorderRadius.circular(12),
@@ -153,60 +156,135 @@ class EmployerHistoryPage extends StatelessWidget {
       body: Padding(
         padding: const EdgeInsets.all(18.0),
         child: StreamBuilder<List>(
-          stream: getHistorialRealtimeByEmpleador(empleadorId),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
+          stream: getSolicitudesRealtimeByEmpleador(empleadorId),
+          builder: (context, snapshotSolicitudes) {
+            if (snapshotSolicitudes.connectionState ==
+                ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
-            if (snapshot.hasError) {
-              return Text('Error: ${snapshot.error}');
-            }
-            if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return const Text('No hay historial');
+            if (snapshotSolicitudes.hasError) {
+              return Text('Error en solicitudes: ${snapshotSolicitudes.error}');
             }
 
-            final todas = snapshot.data!.cast<Map<String, dynamic>>();
-            final enCurso = todas
-                .where((e) =>
-                    (e['estado'] == 'pendiente') ||
-                    (e['estado'] == 'en progreso'))
-                .toList();
-            final historial = todas
-                .where((e) =>
-                    !(e['estado'] == 'pendiente' ||
-                        e['estado'] == 'en progreso'))
-                .toList();
+            final solicitudes =
+                snapshotSolicitudes.data?.cast<Map<String, dynamic>>() ?? [];
 
-            return ListView(
-              children: [
-                /// --- Solicitudes vigentes ---
-                if (enCurso.isNotEmpty) ...[
-                  Text(
-                    'Solicitudes en curso',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.primary,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  ...enCurso.map(_solicitudCard),
-                  const SizedBox(height: 24),
-                ],
+            return StreamBuilder<List>(
+              stream: getHistorialRealtimeByEmpleador(empleadorId),
+              builder: (context, snapshotHistorial) {
+                if (snapshotHistorial.connectionState ==
+                    ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshotHistorial.hasError) {
+                  return Text('Error en historial: ${snapshotHistorial.error}');
+                }
 
-                /// --- Historial ---
-                Text(
-                  'Historial',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                ...historial.map(_solicitudCard),
-                const SizedBox(height: 80),
-              ],
+                final historial =
+                    snapshotHistorial.data?.cast<Map<String, dynamic>>() ?? [];
+
+                final enCurso =
+                    historial
+                        .where(
+                          (e) =>
+                              e['estado'] == 'pendiente' ||
+                              e['estado'] == 'en progreso',
+                        )
+                        .toList();
+
+                final completadas =
+                    historial
+                        .where((e) => e['estado'] == 'completada')
+                        .toList();
+
+                final canceladas =
+                    historial.where((e) => e['estado'] == 'cancelada').toList();
+
+                final otras =
+                    historial
+                        .where(
+                          (e) =>
+                              !(e['estado'] == 'pendiente' ||
+                                  e['estado'] == 'en progreso' ||
+                                  e['estado'] == 'completada' ||
+                                  e['estado'] == 'cancelada'),
+                        )
+                        .toList();
+
+                return ListView(
+                  children: [
+                    /// --- SECCIÓN: SOLICITUDES ---
+                    if (solicitudes.isNotEmpty) ...[
+                      Text(
+                        'Solicitudes',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      ...solicitudes.map(_solicitudCard),
+                      const SizedBox(height: 24),
+                    ],
+
+                    /// --- SECCIÓN: HISTORIAL ---
+                    if (enCurso.isNotEmpty) ...[
+                      Text(
+                        'Solicitudes en curso',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      ...enCurso.map(_solicitudCard),
+                      const SizedBox(height: 24),
+                    ],
+                    if (completadas.isNotEmpty) ...[
+                      Text(
+                        'Solicitudes completadas',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      ...completadas.map(_solicitudCard),
+                      const SizedBox(height: 24),
+                    ],
+                    if (canceladas.isNotEmpty) ...[
+                      Text(
+                        'Solicitudes canceladas',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.redAccent,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      ...canceladas.map(_solicitudCard),
+                      const SizedBox(height: 24),
+                    ],
+                    if (otras.isNotEmpty) ...[
+                      Text(
+                        'Otras solicitudes',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      ...otras.map(_solicitudCard),
+                      const SizedBox(height: 24),
+                    ],
+                    const SizedBox(height: 80),
+                  ],
+                );
+              },
             );
           },
         ),
