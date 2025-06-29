@@ -1,10 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:reinserta/services/firebase_services.dart';
 import '../../../theme/app_colors.dart';
 
 class EmployeeOffersSection extends StatelessWidget {
   final String empleadoId;
   const EmployeeOffersSection({super.key, required this.empleadoId});
+
+  String formatFecha(dynamic fecha) {
+    DateTime? dt;
+    if (fecha == null) return 'Sin fecha';
+    if (fecha is DateTime) dt = fecha;
+    else if (fecha is Timestamp) dt = fecha.toDate();
+    else if (fecha is String) dt = DateTime.tryParse(fecha);
+    else if (fecha is Map && fecha.containsKey('_seconds')) {
+      dt = DateTime.fromMillisecondsSinceEpoch(fecha['_seconds'] * 1000);
+    }
+    if (dt == null) return 'Sin fecha';
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    return "${twoDigits(dt.day)}/${twoDigits(dt.month)}/${dt.year} ${twoDigits(dt.hour)}:${twoDigits(dt.minute)}";
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +54,9 @@ class EmployeeOffersSection extends StatelessWidget {
             return Column(
               children: [
                 ...filteredSolicitudes.map((item) {
+                  final monto = item['monto'];
+                  final entrada = item['entrada'];
+                  final salida = item['salida'];
                   return Container(
                     width: double.infinity,
                     margin: const EdgeInsets.only(bottom: 12),
@@ -64,6 +82,18 @@ class EmployeeOffersSection extends StatelessWidget {
                               ),
                             ),
                           ),
+                          if (monto != null)
+                            Container(
+                              margin: const EdgeInsets.only(right: 8),
+                              child: Text(
+                                'Bs. $monto',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primary,
+                                  fontSize: 15,
+                                ),
+                              ),
+                            ),
                           if (item['estado'] == 'pendiente') ...[
                             IconButton(
                               icon: Icon(
@@ -115,12 +145,39 @@ class EmployeeOffersSection extends StatelessWidget {
                           ],
                         ],
                       ),
-                      subtitle: Text(
-                        item['descripcion'] ?? 'Sin descripción',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textSecondary,
-                        ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item['descripcion'] ?? 'Sin descripción',
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Row(
+                            children: [
+                              const Icon(Icons.login, size: 14, color: Colors.grey),
+                              const SizedBox(width: 3),
+                              Text(
+                                "Entrada: ${formatFecha(entrada)}",
+                                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              ),
+
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              const Icon(Icons.logout, size: 14, color: Colors.grey),
+                              const SizedBox(width: 3),
+                              Text(
+                                "Salida: ${formatFecha(salida)}",
+                                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   );
