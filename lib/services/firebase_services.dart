@@ -593,7 +593,7 @@ Stream<List<Map<String, dynamic>>> getHistorialEmpleadoRealtime(String empleadoI
   return db
       .collection('Historial')
       .where('empleado', isEqualTo: empleadoId)
-      .orderBy('salida', descending: true)
+      // .orderBy('salida', descending: true)
       .snapshots()
       .map((s) => s.docs.map((d) {
             final data = d.data() as Map<String, dynamic>;
