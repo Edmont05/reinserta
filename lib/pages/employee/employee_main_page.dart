@@ -91,136 +91,66 @@ class _EmployeeMainPageState extends State<EmployeeMainPage> {
                 };
 
                 return Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.only(bottom: 24),
-                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     color: AppColors.cardBg,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.primary, width: 1.5),
+                    border: Border.all(
+                      color:
+                          empleadoMap['estado']
+                              ? AppColors.primary
+                              : AppColors.coral,
+                      width: 1.5,
+                    ),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 10,
+                  ),
+                  child: Row(
                     children: [
-                      if (_selectedIndex == 1) ...[
-                        Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.cardBg,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color:
-                                  empleadoMap['estado']
-                                      ? AppColors.primary
-                                      : AppColors.coral,
-                              width: 1.5,
-                            ),
-                          ),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 18,
-                            vertical: 10,
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color:
-                                      empleadoMap['estado']
-                                          ? AppColors.primary.withOpacity(0.08)
-                                          : AppColors.coral.withOpacity(0.15),
-                                ),
-                                padding: const EdgeInsets.all(6),
-                                child: Icon(
-                                  Icons.check_circle,
-                                  color:
-                                      empleadoMap['estado']
-                                          ? AppColors.primary
-                                          : AppColors.coral,
-                                  size: 22,
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Text(
-                                empleadoMap['estado']
-                                    ? "Disponible"
-                                    : "No disponible",
-                                style: TextStyle(
-                                  color:
-                                      empleadoMap['estado']
-                                          ? AppColors.primary
-                                          : AppColors.coral,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 18,
-                                ),
-                              ),
-                              const Spacer(),
-                              Switch(
-                                value: empleadoMap['estado'] ?? false,
-                                onChanged: (value) async {
-                                  await updateEstadoEmpleado(empleadoId, value);
-                                  setState(() {
-                                    empleadoMap['estado'] = value;
-                                  });
-                                },
-                                activeColor: AppColors.primary,
-                                inactiveThumbColor: AppColors.coral,
-                                inactiveTrackColor: AppColors.coral.withOpacity(
-                                  0.4,
-                                ),
-                              ),
-                            ],
-                          ),
+                      Container(
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color:
+                              empleadoMap['estado']
+                                  ? AppColors.primary.withOpacity(0.08)
+                                  : AppColors.coral.withOpacity(0.15),
                         ),
-                        const SizedBox(height: 24),
-                      ],
-
+                        padding: const EdgeInsets.all(6),
+                        child: Icon(
+                          Icons.check_circle,
+                          color:
+                              empleadoMap['estado']
+                                  ? AppColors.primary
+                                  : AppColors.coral,
+                          size: 22,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
                       Text(
-                        empleadoMap['title']!,
+                        empleadoMap['estado'] ? "Disponible" : "No disponible",
                         style: TextStyle(
+                          color:
+                              empleadoMap['estado']
+                                  ? AppColors.primary
+                                  : AppColors.coral,
                           fontWeight: FontWeight.bold,
                           fontSize: 18,
-                          color: AppColors.primary,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        empleadoMap['description']!,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppColors.textSecondary,
-                        ),
+                      const Spacer(),
+                      Switch(
+                        value: empleadoMap['estado'] ?? false,
+                        onChanged: (value) async {
+                          await updateEstadoEmpleado(empleadoId, value);
+                          setState(() {
+                            empleadoMap['estado'] = value;
+                          });
+                        },
+                        activeColor: AppColors.primary,
+                        inactiveThumbColor: AppColors.coral,
+                        inactiveTrackColor: AppColors.coral.withOpacity(0.4),
                       ),
-                      const SizedBox(height: 8),
-                      // Row(
-                      //   children: [
-                      //     Text(
-                      //       'Estado:',
-                      //       style: TextStyle(
-                      //         color: AppColors.textPrimary,
-                      //         fontWeight: FontWeight.w600,
-                      //       ),
-                      //     ),
-                      //     const SizedBox(width: 8),
-                      //     Container(
-                      //       padding: const EdgeInsets.symmetric(
-                      //         horizontal: 10,
-                      //         vertical: 4,
-                      //       ),
-                      //       decoration: BoxDecoration(
-                      //         color: AppColors.primary,
-                      //         borderRadius: BorderRadius.circular(12),
-                      //       ),
-                      //       child: Text(
-                      //         empleadoMap['estado']!,
-                      //         style: const TextStyle(
-                      //           color: Colors.white,
-                      //           fontSize: 13,
-                      //           fontWeight: FontWeight.bold,
-                      //         ),
-                      //       ),
-                      //     ),
-                      //   ],
-                      // ),
                     ],
                   ),
                 );
