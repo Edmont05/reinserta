@@ -94,12 +94,23 @@ class _RequestStep1PageState extends State<RequestStep1Page> {
 
                 /// Profesión con DropdownSearch
                 DropdownSearch<String>(
-                  items: const ["Agricultor", "Obrero", "Ayudante"],
+                  items: const [
+                    'albañi',
+                    'carpintero',
+                    'cerrajero',
+                    'electricista',
+                    'gasfitero',
+                    'jardinero',
+                    'pintor',
+                    'plomero',
+                    'soldador',
+                    'técnico en refrigeración',
+                  ],
                   selectedItem: profesion.isEmpty ? null : profesion,
                   popupProps: const PopupProps.menu(showSearchBox: true),
-                  dropdownDecoratorProps: DropDownDecoratorProps(
+                  dropdownDecoratorProps: const DropDownDecoratorProps(
                     dropdownSearchDecoration: InputDecoration(
-                      labelText: "Profesión requerida",
+                      labelText: 'Profesión requerida',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -107,7 +118,7 @@ class _RequestStep1PageState extends State<RequestStep1Page> {
                 ),
                 const SizedBox(height: 12),
 
-                /// Número de trabajadores (igual)
+                /// Número de trabajadores
                 TextFormField(
                   controller: trabajadoresController,
                   keyboardType: TextInputType.number,
@@ -125,8 +136,7 @@ class _RequestStep1PageState extends State<RequestStep1Page> {
                     Expanded(
                       child: _EntryCard(
                         label: 'Fecha de inicio',
-                        value:
-                        fechaInicio != null
+                        value: fechaInicio != null
                             ? "${fechaInicio!.day.toString().padLeft(2, '0')}/${fechaInicio!.month.toString().padLeft(2, '0')}/${fechaInicio!.year}"
                             : '',
                         onTap: () => _pickDate(context, true),
@@ -137,8 +147,7 @@ class _RequestStep1PageState extends State<RequestStep1Page> {
                     Expanded(
                       child: _EntryCard(
                         label: 'Fecha fin',
-                        value:
-                        fechaFin != null
+                        value: fechaFin != null
                             ? "${fechaFin!.day.toString().padLeft(2, '0')}/${fechaFin!.month.toString().padLeft(2, '0')}/${fechaFin!.year}"
                             : '',
                         onTap: () => _pickDate(context, false),
@@ -152,8 +161,7 @@ class _RequestStep1PageState extends State<RequestStep1Page> {
                 /// Horario con time pickers
                 _EntryCard(
                   label: 'Horario',
-                  value:
-                  (horaInicio != null && horaFin != null)
+                  value: (horaInicio != null && horaFin != null)
                       ? '${horaInicio!.format(context)} - ${horaFin!.format(context)}'
                       : '',
                   onTap: _pickTimeRange,
@@ -164,12 +172,13 @@ class _RequestStep1PageState extends State<RequestStep1Page> {
                 /// Monto como decimal input
                 TextFormField(
                   controller: montoController,
-                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                  keyboardType:
+                      const TextInputType.numberWithOptions(decimal: true),
                   inputFormatters: [decimalFormatter],
-                  decoration: InputDecoration(
-                    labelText: "Monto por persona",
+                  decoration: const InputDecoration(
+                    labelText: 'Monto por persona',
                     border: OutlineInputBorder(),
-                    prefixText: "\$",
+                    prefixText: '\$',
                   ),
                   onChanged: (val) => setState(() => monto = val),
                 ),
@@ -206,14 +215,13 @@ class _RequestStep1PageState extends State<RequestStep1Page> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder:
-                              (context) => RequestStep2Page(
+                          builder: (context) => RequestStep2Page(
                             profesion: profesion,
                             trabajadores: trabajadores,
                             fechaInicio: fechaInicio!,
                             fechaFin: fechaFin!,
                             horario:
-                            '${horaInicio!.format(context)} - ${horaFin!.format(context)}',
+                                '${horaInicio!.format(context)} - ${horaFin!.format(context)}',
                             monto: monto,
                           ),
                         ),
@@ -224,7 +232,7 @@ class _RequestStep1PageState extends State<RequestStep1Page> {
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 18,
-                        color: Colors.white, // <-- blanco
+                        color: Colors.white,
                       ),
                     ),
                   ),
@@ -281,15 +289,12 @@ class _EntryCard extends StatelessWidget {
                   child: Text(
                     value.isNotEmpty ? value : placeholder,
                     style: TextStyle(
-                      color:
-                      value.isNotEmpty
+                      color: value.isNotEmpty
                           ? AppColors.textPrimary
                           : AppColors.textSecondary.withOpacity(0.5),
                       fontSize: 16,
                       fontWeight:
-                      value.isNotEmpty
-                          ? FontWeight.bold
-                          : FontWeight.normal,
+                          value.isNotEmpty ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
                 ),
@@ -313,14 +318,13 @@ class _PickerDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return SimpleDialog(
       title: Text(title),
-      children:
-      options
+      children: options
           .map(
             (o) => SimpleDialogOption(
-          child: Text(o),
-          onPressed: () => Navigator.pop(context, o),
-        ),
-      )
+              child: Text(o),
+              onPressed: () => Navigator.pop(context, o),
+            ),
+          )
           .toList(),
     );
   }

@@ -580,7 +580,8 @@ Stream<List<Map<String, dynamic>>> getEmpleadosFiltrados({
       .where('estado', isEqualTo: true)          // disponibles
       .where('profesion', isEqualTo: profesionBuscada)
       .where('rango', isGreaterThanOrEqualTo: rangoMinimo)
-      .orderBy('rango')                          // (obligatorio tras la comparación)
+      .orderBy('rango')       
+      .startAt([rangoMinimo])                    // (obligatorio tras la comparación)
       .snapshots()
       .map((snapshot) => snapshot.docs.map((doc) {
     final data = doc.data() as Map<String, dynamic>;
@@ -600,4 +601,40 @@ Stream<List<Map<String, dynamic>>> getHistorialEmpleadoRealtime(String empleadoI
             data['id'] = d.id;
             return data;
           }).toList());
+}
+
+// 🔹 Pega esto en firebase_services.dart
+Future<void> publicarSolicitud({
+  required int cantidad,
+  required String descripcion,
+  required String horario,
+  required DateTime entrada,
+  required String latitud,
+  required String longitud,
+  required double monto,
+  required String profesion,
+  required DateTime salida,
+  required String empleadorId,          // ← guarda quién la creó
+}) async {
+  // 1) crea la solicitud y obtén el ID
+  final solicitudId = await addSolicitud(
+    cantidad: cantidad,
+    descripcion: descripcion,
+    horario: horario,
+    entrada: entrada,
+    latitud: latitud,
+    longitud: longitud,
+    monto: monto,
+    profesion: profesion,
+    salida: salida,
+  );
+
+  // 2) añade metadatos extra (empleador, aceptados, etc.)
+  await db.collection('Solicitudes').doc(solicitudId).update({
+    'empleador': empleadorId,
+    'aceptados': 0,
+  });
+
+  // 3) inicializa la cola de candidatos y envía las ofertas
+  await initCandidatosParaSolicitud(solicitudId);
 }
