@@ -339,12 +339,10 @@ Future<void> aceptarSolicitudEmpleado({
 }) async {
   final db = FirebaseFirestore.instance;
 
-  // 1. Confirmar la solicitud y al candidato
   final candidatosRef = db.collection('Candidatos');
   final solicitudesRef = db.collection('Solicitudes');
   final usersRef = db.collection('Users');
 
-  // 2. Actualizar atributo confirmo del candidato
   final candidatoQuery = await candidatosRef
       .where('empleado', isEqualTo: empleadoId)
       .where('solicitud', isEqualTo: solicitudId)
@@ -353,7 +351,6 @@ Future<void> aceptarSolicitudEmpleado({
     await doc.reference.update({'confirmo': true});
   }
 
-  // 3. Cambiar estado de la solicitud a "en progreso" y aumentar aceptados
   final solicitudDoc = await solicitudesRef.doc(solicitudId).get();
   final data = solicitudDoc.data()!;
   final int aceptados = data['aceptados'] ?? 0;
@@ -366,7 +363,6 @@ Future<void> aceptarSolicitudEmpleado({
     });
   }
 
-  // 4. Rechazar (eliminar) las otras solicitudes donde está este empleado como candidato
   final otrosCandidatos = await candidatosRef
       .where('empleado', isEqualTo: empleadoId)
       .where('solicitud', isNotEqualTo: solicitudId)
@@ -375,7 +371,6 @@ Future<void> aceptarSolicitudEmpleado({
     await doc.reference.delete();
   }
 
-  // 5. Si aceptados+1 == cantidad, elimina de Candidatos todos los que no confirmaron esa solicitud
   if (aceptados + 1 >= cantidad) {
     final candidatosDeEstaSolicitud = await candidatosRef
         .where('solicitud', isEqualTo: solicitudId)
@@ -387,9 +382,23 @@ Future<void> aceptarSolicitudEmpleado({
     }
   }
 
-  // 6. Cambiar estado del empleado a false
   final userQuery = await usersRef.where('nombre', isEqualTo: empleadoId).get(); // O usa el ID real si lo tienes
   for (final doc in userQuery.docs) {
     await doc.reference.update({'estado': false});
   }
+}
+
+Future<List<Map<String, dynamic>>> getUltimoHistorialEmpleado(String empleadoId, {int limit = 100}) async {
+  final snapshot = await FirebaseFirestore.instance
+      .collection('Historial')
+      .where('empleado', isEqualTo: empleadoId)
+      .limit(limit)
+      .get();
+
+  return snapshot.docs.map((doc) => doc.data()).toList();
+}
+
+
+Future<void> actualizarCalificacionYRangoUsuario(String empleadoId, double calificacion, int rango) async {
+  final query = FirebaseFirestore.instance.collection('Users').doc(empleadoId).update({'calificacion': calificacion, 'rango':rango});
 }
