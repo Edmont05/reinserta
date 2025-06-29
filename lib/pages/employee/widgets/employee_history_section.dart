@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:reinserta/services/firebase_services.dart';
 import '../../../theme/app_colors.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
 class EmployeeHistorySection extends StatelessWidget {
   final String empleadoId;
   final Future<void> Function(List<Map<String, dynamic>>) onPrint;
+
   const EmployeeHistorySection({
     super.key,
     required this.empleadoId,
     required this.onPrint,
   });
 
-  // Consulta los datos del usuario en Firestore
   Future<Map<String, dynamic>?> getEmpleadoData(String empleadoId) async {
     final doc = await FirebaseFirestore.instance.collection('Users').doc(empleadoId).get();
     return doc.data();
@@ -43,7 +43,6 @@ class EmployeeHistorySection extends StatelessWidget {
           rango = (snapshotUser.data!['rango'] ?? 1);
         }
 
-        // Puedes ajustar estos colores según el rango si lo deseas
         Color rangoColor;
         switch (rango) {
           case 1:
@@ -61,7 +60,6 @@ class EmployeeHistorySection extends StatelessWidget {
 
         return Column(
           children: [
-            // Card de confiabilidad
             Container(
               width: double.infinity,
               margin: const EdgeInsets.only(bottom: 24),
@@ -78,11 +76,7 @@ class EmployeeHistorySection extends StatelessWidget {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     padding: const EdgeInsets.all(10),
-                    child: Icon(
-                      Icons.verified,
-                      color: rangoColor,
-                      size: 38,
-                    ),
+                    child: Icon(Icons.verified, color: rangoColor, size: 38),
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -146,15 +140,15 @@ class EmployeeHistorySection extends StatelessWidget {
                   icon: const Icon(Icons.print),
                   tooltip: 'Imprimir extracto',
                   onPressed: () async {
-                    final snapshot = await getHistorialRealtime().first;
+                    final snapshot = await getHistorialEmpleadoRealtime(empleadoId).first;
                     await onPrint(snapshot.cast<Map<String, dynamic>>());
                   },
                 )
               ],
             ),
             const SizedBox(height: 12),
-            StreamBuilder<List>(
-              stream: getHistorialRealtime(),
+            StreamBuilder<List<Map<String, dynamic>>>(
+              stream: getHistorialEmpleadoRealtime(empleadoId),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -165,87 +159,79 @@ class EmployeeHistorySection extends StatelessWidget {
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return const Text('No hay historial');
                 }
-                final historial = snapshot.data!.cast<Map<String, dynamic>>();
+                final historial = snapshot.data!;
                 return Column(
-                  children: [
-                    ...historial.map((item) {
-                      return Container(
-                        width: double.infinity,
-                        margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          color: AppColors.cardBg,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppColors.cardBorder),
-                        ),
-                        child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 6,
-                          ),
-                          title: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  item['profesion'] ?? 'Sin profesión',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 16,
-                                    color: AppColors.textPrimary,
-                                  ),
+                  children: historial.map((item) {
+                    return Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.cardBg,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.cardBorder),
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        title: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item['profesion'] ?? 'Sin profesión',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 16,
+                                  color: AppColors.textPrimary,
                                 ),
                               ),
-                              if (item['monto'] != null)
-                                Text(
-                                  "Bs. ${item['monto']}",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                    color: AppColors.primary,
-                                  ),
+                            ),
+                            if (item['monto'] != null)
+                              Text(
+                                "Bs. ${item['monto']}",
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                  color: AppColors.primary,
                                 ),
-                            ],
-                          ),
-                          subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              if (item['entrada'] != null && item['salida'] != null)
-                                Builder(
-                                  builder: (context) {
-                                    DateTime entradaDate;
-                                    DateTime salidaDate;
-
-                                    if (item['entrada'] is Map && item['entrada'].containsKey('_seconds')) {
-                                      entradaDate = DateTime.fromMillisecondsSinceEpoch(item['entrada']['_seconds'] * 1000);
-                                    } else {
-                                      entradaDate = DateTime.tryParse(item['entrada'].toString()) ?? DateTime.now();
-                                    }
-
-                                    if (item['salida'] is Map && item['salida'].containsKey('_seconds')) {
-                                      salidaDate = DateTime.fromMillisecondsSinceEpoch(item['salida']['_seconds'] * 1000);
-                                    } else {
-                                      salidaDate = DateTime.tryParse(item['salida'].toString()) ?? DateTime.now();
-                                    }
-
-                                    String twoDigits(int n) => n.toString().padLeft(2, '0');
-                                    String fechaHora(DateTime dt) =>
-                                        "${twoDigits(dt.day)}/${twoDigits(dt.month)}/${dt.year} ${twoDigits(dt.hour)}:${twoDigits(dt.minute)}";
-
-                                    return Text(
-                                      "Entrada: ${fechaHora(entradaDate)}\nSalida: ${fechaHora(salidaDate)}",
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: AppColors.textSecondary.withOpacity(0.8),
-                                      ),
-                                    );
-                                  },
-                                ),
-                            ],
-                          ),
+                              ),
+                          ],
                         ),
-                      );
-                    }).toList(),
-                  ],
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (item['entrada'] != null && item['salida'] != null)
+                              Builder(builder: (context) {
+                                DateTime entradaDate, salidaDate;
+
+                                if (item['entrada'] is Map && item['entrada'].containsKey('_seconds')) {
+                                  entradaDate = DateTime.fromMillisecondsSinceEpoch(item['entrada']['_seconds'] * 1000);
+                                } else {
+                                  entradaDate = DateTime.tryParse(item['entrada'].toString()) ?? DateTime.now();
+                                }
+
+                                if (item['salida'] is Map && item['salida'].containsKey('_seconds')) {
+                                  salidaDate = DateTime.fromMillisecondsSinceEpoch(item['salida']['_seconds'] * 1000);
+                                } else {
+                                  salidaDate = DateTime.tryParse(item['salida'].toString()) ?? DateTime.now();
+                                }
+
+                                String twoDigits(int n) => n.toString().padLeft(2, '0');
+                                String fechaHora(DateTime dt) =>
+                                    "${twoDigits(dt.day)}/${twoDigits(dt.month)}/${dt.year} ${twoDigits(dt.hour)}:${twoDigits(dt.minute)}";
+
+                                return Text(
+                                  "Entrada: ${fechaHora(entradaDate)}\nSalida: ${fechaHora(salidaDate)}",
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.textSecondary.withOpacity(0.8),
+                                  ),
+                                );
+                              }),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
                 );
               },
             ),

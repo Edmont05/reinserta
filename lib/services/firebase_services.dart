@@ -1,6 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:convert';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
+import 'package:reinserta/services/gemini_service.dart';
 
 FirebaseFirestore db = FirebaseFirestore.instance;
+
+
 
 int calcularRangoMinimo(DateTime fechaInicio, DateTime fechaFin) {
   final diferencia = fechaFin.difference(fechaInicio);
@@ -152,32 +159,6 @@ Future<void> updateEstadoEmpleado(String empleadoId, bool estado) async {
       .update({'estado': estado});
 }
 
-Future<void> addSolicitud({
-  required int cantidad,
-  required String descripcion,
-  required String horario,
-  required DateTime entrada,
-  required String estado,
-  required String latitud,
-  required String longitud,
-  required double monto,
-  required String profesion,
-  required DateTime salida,
-}) async {
-  await db.collection('Solicitudes').add({
-    "cantidad": cantidad,
-    "descripcion": descripcion,
-    "horario": horario,
-    "entrada": Timestamp.fromDate(entrada),
-    "estado": estado,
-    "latitud": latitud,
-    "longitud": longitud,
-    "monto": monto,
-    "profesion": profesion,
-    "salida": Timestamp.fromDate(salida),
-  });
-}
-
 Future<void> addHistorial({
   required double calificacion,
   required int cantidad,
@@ -258,43 +239,6 @@ Future<void> completeSolicitudAndCreateHistorial({
   }
 }
 
-Future<void> acceptSolicitud({
-  required String solicitudId,
-  required String empleadoId,
-}) async {
-  final docRef = db.collection('Solicitudes').doc(solicitudId);
-
-  await FirebaseFirestore.instance.runTransaction((txn) async {
-    final snapshot = await txn.get(docRef);
-
-    if (!snapshot.exists) {
-      throw Exception('Solicitud no encontrada');
-    }
-
-    final data = snapshot.data() as Map<String, dynamic>;
-
-    final int cantidad = data['cantidad'] ?? 0;
-    final int aceptados = data['aceptados'] ?? 0;
-    final List<dynamic> asignados = List.from(data['empleadosAsignados'] ?? []);
-
-    // 1. Verifica que aún haya cupos
-    if (aceptados >= cantidad) {
-      throw Exception('La solicitud ya está completa');
-    }
-
-    if (asignados.contains(empleadoId)) {
-      throw Exception('Ya estás asignado a esta solicitud');
-    }
-
-    txn.update(docRef, {
-      'aceptados': FieldValue.increment(1),
-      'empleadosAsignados': FieldValue.arrayUnion([empleadoId]),
-
-      if (aceptados + 1 == cantidad) 'estado': 'en curso'
-    });
-  });
-}
-
 Stream<List> getHistorialDeEmpleadorRealtime(String empleadorId) {
   CollectionReference collectionReferenceHistorial = db.collection('Historial');
   return collectionReferenceHistorial
@@ -347,19 +291,6 @@ Stream<List<Map<String, dynamic>>> getSolicitudesByEmpleadoRealtime(String emple
       yield solicitudes;
       break; // Sal del bucle para escuchar de nuevo si cambia Candidatos
     }
-  }
-}
-
-
-Future<void> eliminarCandidatoPorEmpleadoYSolicitud(String empleadoId, String solicitudId) async {
-  final candidatosRef = FirebaseFirestore.instance.collection('Candidatos');
-  final query = await candidatosRef
-      .where('empleado', isEqualTo: empleadoId)
-      .where('solicitud', isEqualTo: solicitudId)
-      .get();
-
-  for (final doc in query.docs) {
-    await doc.reference.delete();
   }
 }
 
@@ -434,6 +365,190 @@ Future<void> actualizarCalificacionYRangoUsuario(String empleadoId, double calif
   final query = FirebaseFirestore.instance.collection('Users').doc(empleadoId).update({'calificacion': calificacion, 'rango':rango});
 }
 
+Future<List<Map<String, dynamic>>> fetchEmpleadosCoincidentes({
+  required String profesion,
+  required DateTime fechaInicio,
+  required DateTime fechaFin,
+}) async {
+  final rangoMin = calcularRangoMinimo(fechaInicio, fechaFin);
+
+  final snap = await db
+      .collection('Users')
+      .where('rol', isEqualTo: 'empleado')
+      .where('estado', isEqualTo: true)
+      .where('profesion', isEqualTo: profesion)
+      .where('rango', isGreaterThanOrEqualTo: rangoMin)
+      .get();
+
+  return snap.docs.map((d) {
+    final data = d.data();
+    data['id'] = d.id;
+    return data;
+  }).toList();
+}
+
+Future<List<String>> rankEmpleadosConIA(List<Map<String, dynamic>> empleados, Map<String, dynamic> solicitud) async {
+  if (empleados.isEmpty) return [];
+
+  final prompt = GeminiService.buildPrompt(empleados);
+  final raw = await GeminiService.generateContent(prompt);
+
+  try {
+    final parsed = jsonDecode(raw) as Map<String, dynamic>;
+    final list = (parsed['candidatos'] as List<dynamic>)
+        .map((e) => e['uid'] as String)
+        .toList();
+    return list;
+  } catch (_) {
+    // fallback: mismos ids sin IA
+    return empleados.map((e) => e['id'] as String).toList();
+  }
+}
+
+Future<String> addSolicitud({
+  required int cantidad,
+  required String descripcion,
+  required String horario,
+  required DateTime entrada,
+  required String latitud,
+  required String longitud,
+  required double monto,
+  required String profesion,
+  required DateTime salida,
+}) async {
+  final doc = await db.collection('Solicitudes').add({
+    'cantidad': cantidad,
+    'descripcion': descripcion,
+    'horario': horario,
+    'entrada': Timestamp.fromDate(entrada),
+    'estado': 'pendiente',
+    'latitud': latitud,
+    'longitud': longitud,
+    'monto': monto,
+    'profesion': profesion,
+    'salida': Timestamp.fromDate(salida),
+  });
+  return doc.id;
+}
+
+Future<void> initCandidatosParaSolicitud(String solicitudId) async {
+  final doc = await db.collection('Solicitudes').doc(solicitudId).get();
+  if (!doc.exists) return;
+  final data = doc.data()!;
+  final profesion = data['profesion'];
+  final fechaInicio = (data['entrada'] as Timestamp).toDate();
+  final fechaFin = (data['salida'] as Timestamp).toDate();
+  final cantidad = data['cantidad'] as int;
+
+  final empleados = await fetchEmpleadosCoincidentes(
+    profesion: profesion,
+    fechaInicio: fechaInicio,
+    fechaFin: fechaFin,
+  );
+
+  final ordenados = await rankEmpleadosConIA(empleados, data);
+
+  await doc.reference.update({
+    'colaCandidatos': ordenados,
+    'aceptados': 0,
+    'empleadosAsignados': [],
+  });
+
+  final primeros = ordenados.take(cantidad * 3).toList();
+  final batch = db.batch();
+  for (final empId in primeros) {
+    batch.set(db.collection('Candidatos').doc(), {
+      'solicitud': solicitudId,
+      'empleado': empId,
+      'confirmo': false,
+    });
+  }
+  await batch.commit();
+}
+
+Future<void> refillCandidatosSiNecesario(String solicitudId) async {
+  final solicitudDoc = await db.collection('Solicitudes').doc(solicitudId).get();
+  if (!solicitudDoc.exists) return;
+  final data = solicitudDoc.data()!;
+  final cantidad = data['cantidad'] as int;
+  final cola = List<String>.from(data['colaCandidatos'] ?? []);
+
+  final snap = await db
+      .collection('Candidatos')
+      .where('solicitud', isEqualTo: solicitudId)
+      .get();
+  final activos = snap.docs.length;
+  if (activos >= cantidad * 3) return;
+
+  final currentIds = snap.docs.map((d) => d['empleado'] as String).toSet();
+  final toAdd = cola
+      .where((id) => !currentIds.contains(id))
+      .take(cantidad * 3 - activos)
+      .toList();
+
+  final batch = db.batch();
+  for (final id in toAdd) {
+    batch.set(db.collection('Candidatos').doc(), {
+      'solicitud': solicitudId,
+      'empleado': id,
+      'confirmo': false,
+    });
+  }
+  await batch.commit();
+}
+
+Future<void> eliminarCandidatoPorEmpleadoYSolicitud(String empleadoId, String solicitudId) async {
+  final q = await db
+      .collection('Candidatos')
+      .where('empleado', isEqualTo: empleadoId)
+      .where('solicitud', isEqualTo: solicitudId)
+      .get();
+  for (final d in q.docs) await d.reference.delete();
+}
+
+Future<void> rejectSolicitudEmpleado({required String empleadoId, required String solicitudId}) async {
+  await eliminarCandidatoPorEmpleadoYSolicitud(empleadoId, solicitudId);
+  await refillCandidatosSiNecesario(solicitudId);
+}
+
+Future<void> cancelSolicitud(String solicitudId) async {
+  final solicitudesRef = db.collection('Solicitudes');
+  final candidatosRef = db.collection('Candidatos');
+
+  await db.runTransaction((txn) async {
+    txn.update(solicitudesRef.doc(solicitudId), {'estado': 'cancelada'});
+    final snap = await candidatosRef.where('solicitud', isEqualTo: solicitudId).get();
+    for (final d in snap.docs) txn.delete(d.reference);
+  });
+}
+
+Future<void> acceptSolicitud({required String solicitudId, required String empleadoId}) async {
+  final docRef = db.collection('Solicitudes').doc(solicitudId);
+
+  await db.runTransaction((txn) async {
+    final snap = await txn.get(docRef);
+    if (!snap.exists) throw Exception('Solicitud no encontrada');
+
+    final data = snap.data() as Map<String, dynamic>;
+    final cantidad = data['cantidad'] ?? 0;
+    final aceptados = data['aceptados'] ?? 0;
+    final asignados = List<String>.from(data['empleadosAsignados'] ?? []);
+
+    if (aceptados >= cantidad || asignados.contains(empleadoId)) return;
+
+    asignados.add(empleadoId);
+
+    txn.update(docRef, {
+      'aceptados': aceptados + 1,
+      'empleadosAsignados': asignados,
+      if (aceptados + 1 == cantidad) 'estado': 'en progreso',
+    });
+  });
+
+  // Mark employee as unavailable
+  await db.collection('Users').doc(empleadoId).update({'estado': false});
+}
+
 
 Stream<List<Map<String, dynamic>>> getEmpleadosFiltrados({
   required String profesionBuscada,
@@ -457,3 +572,15 @@ Stream<List<Map<String, dynamic>>> getEmpleadosFiltrados({
   }).toList());
 }
 
+Stream<List<Map<String, dynamic>>> getHistorialEmpleadoRealtime(String empleadoId) {
+  return db
+      .collection('Historial')
+      .where('empleado', isEqualTo: empleadoId)
+      .orderBy('salida', descending: true)
+      .snapshots()
+      .map((s) => s.docs.map((d) {
+            final data = d.data() as Map<String, dynamic>;
+            data['id'] = d.id;
+            return data;
+          }).toList());
+}

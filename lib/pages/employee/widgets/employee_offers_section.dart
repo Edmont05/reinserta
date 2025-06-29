@@ -49,140 +49,125 @@ class EmployeeOffersSection extends StatelessWidget {
             if (!snapshot.hasData || snapshot.data!.isEmpty) {
               return const Text('No hay ofertas vigentes');
             }
-            final filteredSolicitudes = snapshot.data!;
+
+            final solicitudes = snapshot.data!;
 
             return Column(
-              children: [
-                ...filteredSolicitudes.map((item) {
-                  final monto = item['monto'];
-                  final entrada = item['entrada'];
-                  final salida = item['salida'];
-                  return Container(
-                    width: double.infinity,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: AppColors.cardBg,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.cardBorder),
-                    ),
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 6,
-                      ),
-                      title: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              item['profesion'] ?? 'Sin profesion',
+              children: solicitudes.map((item) {
+                final monto = item['monto'];
+                final entrada = item['entrada'];
+                final salida = item['salida'];
+
+                return Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: AppColors.cardBg,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: AppColors.cardBorder),
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    title: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item['profesion'] ?? 'Sin profesión',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 16,
+                              color: AppColors.textPrimary,
+                            ),
+                          ),
+                        ),
+                        if (monto != null)
+                          Text(
+                            'Bs. $monto',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                              fontSize: 15,
+                            ),
+                          ),
+                        if (item['estado'] == 'pendiente') ...[
+                          IconButton(
+                            icon: Icon(Icons.close, color: AppColors.primary, size: 22),
+                            tooltip: 'Rechazar',
+                            onPressed: () async {
+                              await rejectSolicitudEmpleado(
+                                empleadoId: empleadoId,
+                                solicitudId: item['id'],
+                              );
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Solicitud rechazada')),
+                              );
+                            },
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.check, color: AppColors.primary, size: 22),
+                            tooltip: 'Aceptar',
+                            onPressed: () async {
+                              await aceptarSolicitudEmpleado(
+                                empleadoId: empleadoId,
+                                solicitudId: item['id'],
+                              );
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Solicitud aceptada y procesada')),
+                              );
+                            },
+                          ),
+                        ] else if (item['estado'] == 'en progreso') ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Text(
+                              'En progreso',
                               style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                fontSize: 16,
-                                color: AppColors.textPrimary,
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ),
-                          if (monto != null)
-                            Container(
-                              margin: const EdgeInsets.only(right: 8),
-                              child: Text(
-                                'Bs. $monto',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: AppColors.primary,
-                                  fontSize: 15,
-                                ),
-                              ),
-                            ),
-                          if (item['estado'] == 'pendiente') ...[
-                            IconButton(
-                              icon: Icon(
-                                Icons.close,
-                                color: AppColors.primary,
-                                size: 22,
-                              ),
-                              tooltip: 'Rechazar',
-                              onPressed: () async {
-                                await eliminarCandidatoPorEmpleadoYSolicitud(empleadoId, item['id']);
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Solicitud cancelada')),
-                                );
-                              },
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                Icons.check,
-                                color: AppColors.primary,
-                                size: 22,
-                              ),
-                              tooltip: 'Aceptar',
-                              onPressed: () async {
-                                await aceptarSolicitudEmpleado(
-                                  empleadoId: empleadoId,
-                                  solicitudId: item['id'],
-                                );
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Solicitud aceptada y procesada')),
-                                );
-                              },
-                            ),
-                          ] else if (item['estado'] == 'en progreso') ...[
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Text(
-                                'En progreso',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
+                        ],
+                      ],
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item['descripcion'] ?? 'Sin descripción',
+                          style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                        ),
+                        const SizedBox(height: 2),
+                        Row(
+                          children: [
+                            const Icon(Icons.login, size: 14, color: Colors.grey),
+                            const SizedBox(width: 3),
+                            Text(
+                              "Entrada: ${formatFecha(entrada)}",
+                              style: const TextStyle(fontSize: 12, color: Colors.grey),
                             ),
                           ],
-                        ],
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item['descripcion'] ?? 'Sin descripción',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: AppColors.textSecondary,
+                        ),
+                        Row(
+                          children: [
+                            const Icon(Icons.logout, size: 14, color: Colors.grey),
+                            const SizedBox(width: 3),
+                            Text(
+                              "Salida: ${formatFecha(salida)}",
+                              style: const TextStyle(fontSize: 12, color: Colors.grey),
                             ),
-                          ),
-                          const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              const Icon(Icons.login, size: 14, color: Colors.grey),
-                              const SizedBox(width: 3),
-                              Text(
-                                "Entrada: ${formatFecha(entrada)}",
-                                style: const TextStyle(fontSize: 12, color: Colors.grey),
-                              ),
-
-                            ],
-                          ),
-                          Row(
-                            children: [
-                              const Icon(Icons.logout, size: 14, color: Colors.grey),
-                              const SizedBox(width: 3),
-                              Text(
-                                "Salida: ${formatFecha(salida)}",
-                                style: const TextStyle(fontSize: 12, color: Colors.grey),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                          ],
+                        ),
+                      ],
                     ),
-                  );
-                }).toList(),
-              ],
+                  ),
+                );
+              }).toList(),
             );
           },
         ),
