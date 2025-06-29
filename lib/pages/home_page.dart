@@ -25,7 +25,7 @@ class HomePage extends StatelessWidget {
                 ),
                 const SizedBox(height: 28),
                 Text(
-                  'Bienvenido a Reinserta!',
+                  'Bienvenido a PuenteLaboral!',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,

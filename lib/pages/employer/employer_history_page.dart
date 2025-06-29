@@ -142,7 +142,7 @@ class EmployerHistoryPage extends StatelessWidget {
         elevation: 0.5,
         centerTitle: true,
         title: Text(
-          'Reinserta',
+          'PuenteLaboral',
           style: TextStyle(
             color: AppColors.textPrimary,
             fontWeight: FontWeight.bold,

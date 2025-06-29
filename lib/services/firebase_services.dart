@@ -77,23 +77,6 @@ Stream<List> getHistorialRealtimeByEmpleador(String empleadorId) {
             }).toList(),
       );
 }
-Stream<List> getSolicitudesRealtimeByEmpleador(String empleadorId) {
-  CollectionReference collectionReferenceHistorial = db.collection('Solicitudes');
-  return collectionReferenceHistorial
-      .where('empleador', isEqualTo: empleadorId)
-      .where('estado', whereIn: ['pendiente', 'en progreso'])
-      // .orderBy('salida', descending: false)
-      .snapshots()
-      .map(
-        (snapshot) =>
-            snapshot.docs.map((doc) {
-              final Map<String, dynamic> data =
-                  doc.data() as Map<String, dynamic>;
-              data['id'] = doc.id;
-              return data;
-            }).toList(),
-      );
-}
 
 Stream<List> getEmpleadosRealtime() {
   CollectionReference collectionReferenceEmpleados = db.collection(
@@ -654,4 +637,23 @@ Future<void> publicarSolicitud({
 
   // 3) inicializa la cola de candidatos y envía las ofertas
   await initCandidatosParaSolicitud(solicitudId);
+}
+
+
+Stream<List> getSolicitudesRealtimeByEmpleador(String empleadorId) {
+  CollectionReference collectionReferenceHistorial = db.collection('Solicitudes');
+  return collectionReferenceHistorial
+      .where('empleador', isEqualTo: empleadorId)
+      .where('estado', whereIn: ['pendiente', 'en progreso'])
+  // .orderBy('salida', descending: false)
+      .snapshots()
+      .map(
+        (snapshot) =>
+        snapshot.docs.map((doc) {
+          final Map<String, dynamic> data =
+          doc.data() as Map<String, dynamic>;
+          data['id'] = doc.id;
+          return data;
+        }).toList(),
+  );
 }
