@@ -258,10 +258,41 @@ Future<void> completeSolicitudAndCreateHistorial({
   }
 }
 
-Future<void> acceptSolicitud({required String solicitudId}) async {
+Future<void> acceptSolicitud({
+  required String solicitudId,
+  required String empleadoId,
+}) async {
   final docRef = db.collection('Solicitudes').doc(solicitudId);
 
-  await docRef.update({'estado': 'en curso'});
+  await FirebaseFirestore.instance.runTransaction((txn) async {
+    final snapshot = await txn.get(docRef);
+
+    if (!snapshot.exists) {
+      throw Exception('Solicitud no encontrada');
+    }
+
+    final data = snapshot.data() as Map<String, dynamic>;
+
+    final int cantidad = data['cantidad'] ?? 0;
+    final int aceptados = data['aceptados'] ?? 0;
+    final List<dynamic> asignados = List.from(data['empleadosAsignados'] ?? []);
+
+    // 1. Verifica que aún haya cupos
+    if (aceptados >= cantidad) {
+      throw Exception('La solicitud ya está completa');
+    }
+
+    if (asignados.contains(empleadoId)) {
+      throw Exception('Ya estás asignado a esta solicitud');
+    }
+
+    txn.update(docRef, {
+      'aceptados': FieldValue.increment(1),
+      'empleadosAsignados': FieldValue.arrayUnion([empleadoId]),
+
+      if (aceptados + 1 == cantidad) 'estado': 'en curso'
+    });
+  });
 }
 
 Stream<List> getHistorialDeEmpleadorRealtime(String empleadorId) {
@@ -402,3 +433,27 @@ Future<List<Map<String, dynamic>>> getUltimoHistorialEmpleado(String empleadoId,
 Future<void> actualizarCalificacionYRangoUsuario(String empleadoId, double calificacion, int rango) async {
   final query = FirebaseFirestore.instance.collection('Users').doc(empleadoId).update({'calificacion': calificacion, 'rango':rango});
 }
+
+
+Stream<List<Map<String, dynamic>>> getEmpleadosFiltrados({
+  required String profesionBuscada,
+  required DateTime fechaInicio,
+  required DateTime fechaFin,
+}) {
+  final int rangoMinimo = calcularRangoMinimo(fechaInicio, fechaFin);
+
+  return db
+      .collection('Users')
+      .where('rol', isEqualTo: 'empleado')
+      .where('estado', isEqualTo: true)          // disponibles
+      .where('profesion', isEqualTo: profesionBuscada)
+      .where('rango', isGreaterThanOrEqualTo: rangoMinimo)
+      .orderBy('rango')                          // (obligatorio tras la comparación)
+      .snapshots()
+      .map((snapshot) => snapshot.docs.map((doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    data['id'] = doc.id;
+    return data;
+  }).toList());
+}
+

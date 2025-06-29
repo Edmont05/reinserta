@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:dropdown_search/dropdown_search.dart';
 import '../../theme/app_colors.dart';
 import 'request_step2_page.dart';
 
@@ -10,15 +12,21 @@ class RequestStep1Page extends StatefulWidget {
 }
 
 class _RequestStep1PageState extends State<RequestStep1Page> {
-  // Controllers y estados
   String profesion = '';
   String trabajadores = '';
   DateTime? fechaInicio;
   DateTime? fechaFin;
-  String horario = '';
+  TimeOfDay? horaInicio;
+  TimeOfDay? horaFin;
   String monto = '';
 
+  final montoController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  final trabajadoresController = TextEditingController();
+
+  final decimalFormatter = FilteringTextInputFormatter.allow(
+    RegExp(r'^\d+\.?\d{0,2}'),
+  );
 
   Future<void> _pickDate(BuildContext context, bool isStart) async {
     final now = DateTime.now();
@@ -39,6 +47,20 @@ class _RequestStep1PageState extends State<RequestStep1Page> {
     }
   }
 
+  Future<void> _pickTimeRange() async {
+    final start = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+    );
+    if (start == null) return;
+    final end = await showTimePicker(context: context, initialTime: start);
+    if (end == null) return;
+    setState(() {
+      horaInicio = start;
+      horaFin = end;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -47,10 +69,7 @@ class _RequestStep1PageState extends State<RequestStep1Page> {
         elevation: 0.5,
         iconTheme: IconThemeData(color: AppColors.primary),
         centerTitle: true,
-        title: Image.asset(
-          'img/logo.png',
-          height: 48,
-        ),
+        title: Image.asset('img/logo.png', height: 48),
       ),
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -72,44 +91,42 @@ class _RequestStep1PageState extends State<RequestStep1Page> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                _EntryCard(
-                  label: 'Profesión requerida',
-                  value: profesion,
-                  onTap: () async {
-                    final result = await showDialog<String>(
-                      context: context,
-                      builder: (ctx) => _PickerDialog(
-                        title: "Selecciona profesión",
-                        options: const ["Agricultor", "Obrero", "Ayudante"],
-                      ),
-                    );
-                    if (result != null) setState(() => profesion = result);
-                  },
-                  placeholder: 'Seleccionar',
+
+                /// Profesión con DropdownSearch
+                DropdownSearch<String>(
+                  items: const ["Agricultor", "Obrero", "Ayudante"],
+                  selectedItem: profesion.isEmpty ? null : profesion,
+                  popupProps: const PopupProps.menu(showSearchBox: true),
+                  dropdownDecoratorProps: DropDownDecoratorProps(
+                    dropdownSearchDecoration: InputDecoration(
+                      labelText: "Profesión requerida",
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  onChanged: (value) => setState(() => profesion = value ?? ''),
                 ),
                 const SizedBox(height: 12),
-                _EntryCard(
-                  label: 'Numero de trabajadores',
-                  value: trabajadores,
-                  onTap: () async {
-                    final result = await showDialog<String>(
-                      context: context,
-                      builder: (ctx) => _PickerDialog(
-                        title: "Cantidad de trabajadores",
-                        options: List.generate(20, (i) => '${i + 1}'),
-                      ),
-                    );
-                    if (result != null) setState(() => trabajadores = result);
-                  },
-                  placeholder: '0',
+
+                /// Número de trabajadores (igual)
+                TextFormField(
+                  controller: trabajadoresController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: const InputDecoration(
+                    labelText: 'Número de trabajadores',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (val) => setState(() => trabajadores = val),
                 ),
-                const SizedBox(height: 12),
+
+                /// Fechas
                 Row(
                   children: [
                     Expanded(
                       child: _EntryCard(
                         label: 'Fecha de inicio',
-                        value: fechaInicio != null
+                        value:
+                        fechaInicio != null
                             ? "${fechaInicio!.day.toString().padLeft(2, '0')}/${fechaInicio!.month.toString().padLeft(2, '0')}/${fechaInicio!.year}"
                             : '',
                         onTap: () => _pickDate(context, true),
@@ -119,8 +136,9 @@ class _RequestStep1PageState extends State<RequestStep1Page> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: _EntryCard(
-                        label: 'Fecha dfn',
-                        value: fechaFin != null
+                        label: 'Fecha fin',
+                        value:
+                        fechaFin != null
                             ? "${fechaFin!.day.toString().padLeft(2, '0')}/${fechaFin!.month.toString().padLeft(2, '0')}/${fechaFin!.year}"
                             : '',
                         onTap: () => _pickDate(context, false),
@@ -130,41 +148,35 @@ class _RequestStep1PageState extends State<RequestStep1Page> {
                   ],
                 ),
                 const SizedBox(height: 12),
+
+                /// Horario con time pickers
                 _EntryCard(
                   label: 'Horario',
-                  value: horario,
-                  onTap: () async {
-                    final result = await showDialog<String>(
-                      context: context,
-                      builder: (ctx) => _PickerDialog(
-                        title: "Horario",
-                        options: const [
-                          "8:00 a.m. - 2:00 p.m.",
-                          "2:00 p.m. - 8:00 p.m.",
-                        ],
-                      ),
-                    );
-                    if (result != null) setState(() => horario = result);
-                  },
+                  value:
+                  (horaInicio != null && horaFin != null)
+                      ? '${horaInicio!.format(context)} - ${horaFin!.format(context)}'
+                      : '',
+                  onTap: _pickTimeRange,
                   placeholder: 'Seleccionar',
                 ),
                 const SizedBox(height: 12),
-                _EntryCard(
-                  label: 'Monto por persona',
-                  value: monto,
-                  onTap: () async {
-                    final result = await showDialog<String>(
-                      context: context,
-                      builder: (ctx) => _PickerDialog(
-                        title: "Monto por persona",
-                        options: const ["\$150", "\$200", "\$250"],
-                      ),
-                    );
-                    if (result != null) setState(() => monto = result);
-                  },
-                  placeholder: '\$0',
+
+                /// Monto como decimal input
+                TextFormField(
+                  controller: montoController,
+                  keyboardType: TextInputType.numberWithOptions(decimal: true),
+                  inputFormatters: [decimalFormatter],
+                  decoration: InputDecoration(
+                    labelText: "Monto por persona",
+                    border: OutlineInputBorder(),
+                    prefixText: "\$",
+                  ),
+                  onChanged: (val) => setState(() => monto = val),
                 ),
+
                 const SizedBox(height: 28),
+
+                /// Botón Siguiente
                 SizedBox(
                   width: double.infinity,
                   height: 48,
@@ -180,22 +192,28 @@ class _RequestStep1PageState extends State<RequestStep1Page> {
                           trabajadores.isEmpty ||
                           fechaInicio == null ||
                           fechaFin == null ||
-                          horario.isEmpty ||
+                          horaInicio == null ||
+                          horaFin == null ||
                           monto.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Completa todos los campos')),
+                          const SnackBar(
+                            content: Text('Completa todos los campos'),
+                          ),
                         );
                         return;
                       }
+
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => RequestStep2Page(
+                          builder:
+                              (context) => RequestStep2Page(
                             profesion: profesion,
                             trabajadores: trabajadores,
                             fechaInicio: fechaInicio!,
                             fechaFin: fechaFin!,
-                            horario: horario,
+                            horario:
+                            '${horaInicio!.format(context)} - ${horaFin!.format(context)}',
                             monto: monto,
                           ),
                         ),
@@ -203,7 +221,11 @@ class _RequestStep1PageState extends State<RequestStep1Page> {
                     },
                     child: const Text(
                       'Siguiente',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: Colors.white, // <-- blanco
+                      ),
                     ),
                   ),
                 ),
@@ -221,6 +243,7 @@ class _EntryCard extends StatelessWidget {
   final String value;
   final String placeholder;
   final VoidCallback onTap;
+
   const _EntryCard({
     required this.label,
     required this.value,
@@ -258,11 +281,15 @@ class _EntryCard extends StatelessWidget {
                   child: Text(
                     value.isNotEmpty ? value : placeholder,
                     style: TextStyle(
-                      color: value.isNotEmpty
+                      color:
+                      value.isNotEmpty
                           ? AppColors.textPrimary
                           : AppColors.textSecondary.withOpacity(0.5),
                       fontSize: 16,
-                      fontWeight: value.isNotEmpty ? FontWeight.bold : FontWeight.normal,
+                      fontWeight:
+                      value.isNotEmpty
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                     ),
                   ),
                 ),
@@ -279,13 +306,15 @@ class _EntryCard extends StatelessWidget {
 class _PickerDialog extends StatelessWidget {
   final String title;
   final List<String> options;
+
   const _PickerDialog({required this.title, required this.options});
 
   @override
   Widget build(BuildContext context) {
     return SimpleDialog(
       title: Text(title),
-      children: options
+      children:
+      options
           .map(
             (o) => SimpleDialogOption(
           child: Text(o),

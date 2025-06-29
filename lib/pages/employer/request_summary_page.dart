@@ -11,6 +11,7 @@ class RequestSummaryPage extends StatelessWidget {
   final String ubicacion;
   final String descripcion;
 
+
   const RequestSummaryPage({
     super.key,
     required this.profesion,
