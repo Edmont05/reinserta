@@ -280,3 +280,116 @@ Stream<List> getHistorialDeEmpleadorRealtime(String empleadorId) {
             }).toList(),
       );
 }
+
+Stream<List<Map<String, dynamic>>> getSolicitudesByEmpleadoRealtime(String empleadoId) async* {
+  final candidatosRef = FirebaseFirestore.instance.collection('Candidatos');
+  final solicitudesRef = FirebaseFirestore.instance.collection('Solicitudes');
+
+  // Escucha los cambios en la relación (Candidatos)
+  await for (final candidatosSnap in candidatosRef.where('empleado', isEqualTo: empleadoId).snapshots()) {
+    final solicitudIds = candidatosSnap.docs.map((doc) => doc['solicitud'] as String).toList();
+
+    if (solicitudIds.isEmpty) {
+      yield [];
+      continue;
+    }
+
+    // Escucha los cambios en las Solicitudes relacionadas (con esos IDs)
+    // Firestore whereIn soporta hasta 10 documentos por consulta, hay que tener cuidado si hay más.
+    final solicitudesStream = solicitudesRef
+        .where(FieldPath.documentId, whereIn: solicitudIds)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+        .map((doc) {
+      final data = doc.data() as Map<String, dynamic>;
+      data['id'] = doc.id;
+      return data;
+    })
+        .where((item) =>
+    item['estado'] == 'en progreso' || item['estado'] == 'pendiente'
+    )
+        .toList()
+    );
+
+    // Espera el primer valor y emite (también puedes usar yield* si quieres seguir el stream completo)
+    await for (final solicitudes in solicitudesStream) {
+      yield solicitudes;
+      break; // Sal del bucle para escuchar de nuevo si cambia Candidatos
+    }
+  }
+}
+
+
+Future<void> eliminarCandidatoPorEmpleadoYSolicitud(String empleadoId, String solicitudId) async {
+  final candidatosRef = FirebaseFirestore.instance.collection('Candidatos');
+  final query = await candidatosRef
+      .where('empleado', isEqualTo: empleadoId)
+      .where('solicitud', isEqualTo: solicitudId)
+      .get();
+
+  for (final doc in query.docs) {
+    await doc.reference.delete();
+  }
+}
+
+
+Future<void> aceptarSolicitudEmpleado({
+  required String empleadoId,
+  required String solicitudId,
+}) async {
+  final db = FirebaseFirestore.instance;
+
+  // 1. Confirmar la solicitud y al candidato
+  final candidatosRef = db.collection('Candidatos');
+  final solicitudesRef = db.collection('Solicitudes');
+  final usersRef = db.collection('Users');
+
+  // 2. Actualizar atributo confirmo del candidato
+  final candidatoQuery = await candidatosRef
+      .where('empleado', isEqualTo: empleadoId)
+      .where('solicitud', isEqualTo: solicitudId)
+      .get();
+  for (final doc in candidatoQuery.docs) {
+    await doc.reference.update({'confirmo': true});
+  }
+
+  // 3. Cambiar estado de la solicitud a "en progreso" y aumentar aceptados
+  final solicitudDoc = await solicitudesRef.doc(solicitudId).get();
+  final data = solicitudDoc.data()!;
+  final int aceptados = data['aceptados'] ?? 0;
+  final int cantidad = data['cantidad'] ?? 1;
+
+  if (aceptados < cantidad) {
+    await solicitudesRef.doc(solicitudId).update({
+      'estado': 'en progreso',
+      'aceptados': aceptados + 1,
+    });
+  }
+
+  // 4. Rechazar (eliminar) las otras solicitudes donde está este empleado como candidato
+  final otrosCandidatos = await candidatosRef
+      .where('empleado', isEqualTo: empleadoId)
+      .where('solicitud', isNotEqualTo: solicitudId)
+      .get();
+  for (final doc in otrosCandidatos.docs) {
+    await doc.reference.delete();
+  }
+
+  // 5. Si aceptados+1 == cantidad, elimina de Candidatos todos los que no confirmaron esa solicitud
+  if (aceptados + 1 >= cantidad) {
+    final candidatosDeEstaSolicitud = await candidatosRef
+        .where('solicitud', isEqualTo: solicitudId)
+        .get();
+    for (final doc in candidatosDeEstaSolicitud.docs) {
+      if (doc['confirmo'] != true) {
+        await doc.reference.delete();
+      }
+    }
+  }
+
+  // 6. Cambiar estado del empleado a false
+  final userQuery = await usersRef.where('nombre', isEqualTo: empleadoId).get(); // O usa el ID real si lo tienes
+  for (final doc in userQuery.docs) {
+    await doc.reference.update({'estado': false});
+  }
+}
