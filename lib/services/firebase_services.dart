@@ -61,6 +61,23 @@ Stream<List> getSolicitudesRealtime() {
       );
 }
 
+Stream<List> getHistorialRealtimeByEmpleador(String empleadorId) {
+  CollectionReference collectionReferenceHistorial = db.collection('Historial');
+  return collectionReferenceHistorial
+      .where('empleador', isEqualTo: empleadorId)
+      // .orderBy('salida', descending: false)
+      .snapshots()
+      .map(
+        (snapshot) =>
+            snapshot.docs.map((doc) {
+              final Map<String, dynamic> data =
+                  doc.data() as Map<String, dynamic>;
+              data['id'] = doc.id;
+              return data;
+            }).toList(),
+      );
+}
+
 Stream<List> getEmpleadosRealtime() {
   CollectionReference collectionReferenceEmpleados = db.collection(
     'Solicitudes',

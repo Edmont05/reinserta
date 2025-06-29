@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:reinserta/services/firebase_services.dart';
 import '../../theme/app_colors.dart';
 import 'request_step1_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+const String empleadoId = '1JSngNx7QxeeEBC6lPWW';
 
 class EmployerHistoryPage extends StatelessWidget {
   const EmployerHistoryPage({super.key});
-
   @override
   Widget build(BuildContext context) {
     final List<Map<String, String>> history = [
@@ -13,6 +15,15 @@ class EmployerHistoryPage extends StatelessWidget {
       {'title': 'Solicitud 2', 'description': 'Descripción de la solicitud 2.'},
       {'title': 'Solicitud 3', 'description': 'Descripción de la solicitud 3.'},
     ];
+
+    Future<Map<String, dynamic>?> getEmpleadoData(String empleadoId) async {
+      final doc =
+          await FirebaseFirestore.instance
+              .collection('Users')
+              .doc(empleadoId)
+              .get();
+      return doc.data();
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -47,7 +58,7 @@ class EmployerHistoryPage extends StatelessWidget {
             const SizedBox(height: 20),
             Expanded(
               child: StreamBuilder<List>(
-                stream: getHistorialRealtime(),
+                stream: getHistorialRealtimeByEmpleador(empleadoId),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
